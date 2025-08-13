@@ -2,6 +2,7 @@
 {
     public interface ILoggerManager
     {
+        void LogCritical(string message);
         void LogDebug(string message);
         void LogError(string message);
         void LogInfo(string message);
