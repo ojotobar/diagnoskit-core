@@ -19,5 +19,7 @@ namespace DiagnosKit.Core.Logging.Implementations
         public void LogInfo(string message) => _logger.LogInformation(message);
 
         public void LogWarn(string message) => _logger.LogWarning(message);
+
+        public void LogCritical(string message) => _logger.LogCritical(message);
     }
 }

@@ -65,6 +65,27 @@ app.MapGet("/", () =>
 app.Run();
 ```
 
+```csharp
+public class DiagnosKit
+{
+    private readonly ILoggerManager _logger;
+
+    public DiagnosKit(ILoggerManager logger)
+    {
+        _logger = logger;
+    }
+
+    public void LogTest()
+    {
+        _logger.LogDebug("This is a debug");
+        _logger.LogInfo("This is an info log");
+        _logger.LogWarn("This is a warning log");
+        _logger.LogError("This is an error log");
+        _logger.LogCritical("This is a critical log");
+    }
+}
+```
+
 If an unhandled exception occurs, the middleware logs the error and returns a standardized JSON response like:
 
 ```json
