@@ -11,7 +11,7 @@
 		<RepositoryUrl>https://github.com/ojotobar/diagnoskit-core</RepositoryUrl>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
-		<Version>2.0.9</Version>
+		<Version>2.0.0</Version>
 	</PropertyGroup>
 
 	<ItemGroup>
