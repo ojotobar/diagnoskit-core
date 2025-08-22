@@ -38,7 +38,7 @@ namespace DiagnosKit.Core.Configurations
 
         private static ElasticsearchSinkOptions ConfigureElasticSink(IConfigurationRoot config, string environment)
         {
-            return new ElasticsearchSinkOptions(new Uri(config["Elastic:Url"] ?? string.Empty))
+            return new ElasticsearchSinkOptions(new Uri(config["ElasticSearch:Url"] ?? string.Empty))
             {
                 AutoRegisterTemplate = true,
                 IndexFormat = $"{Assembly.GetExecutingAssembly().GetName()?.Name?.ToLower().Replace(".", "-")}-{environment.ToLower()}-{DateTime.UtcNow:yyyy-MM}",
