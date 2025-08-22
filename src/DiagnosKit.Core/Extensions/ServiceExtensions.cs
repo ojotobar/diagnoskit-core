@@ -10,7 +10,7 @@ namespace DiagnosKit.Core.Extensions
     {
         public static void UseUnifiedErrorHandler(this IApplicationBuilder app)
         {
-            app.UseMiddleware<UnifiedErrorHandlerMIddleware>();
+            app.UseMiddleware<UnifiedErrorHandlerMiddleware>();
         }
 
         public static void AddLoggerManager(this IServiceCollection services)
