@@ -1,17 +1,19 @@
 # DiagnosKit.Core
 
-[![NuGet](https://img.shields.io/nuget/v/DiagnosKit.Core.svg)](https://www.nuget.org/packages/DiagnosKit.Core)
+[![NuGet](https://img.shields.io/nuget/v/DiagnosKit.Core.svg)](https://www.nuget.org/packages/DiagnosKit.Core)  
 [![NuGet Downloads](https://img.shields.io/nuget/dt/DiagnosKit.Core.svg)](https://www.nuget.org/packages/DiagnosKit.Core)
 
-# DiagnosKit.Core
+---
+
+## 📖 Overview
 
 **DiagnosKit.Core** is a reusable .NET toolkit providing cross-cutting features for your services, including:
 
-- **Global error handling middleware** to capture and format unhandled exceptions.
-- **Centralized logger manager** for consistent logging across multiple services.
-- **Standardized error response models** for consistent API output.
+- **Global error handling middleware** to capture and format unhandled exceptions.  
+- **Centralized logger manager** powered by **Serilog** with support for **Elasticsearch** and **Kibana**.  
+- **Standardized error response models** for consistent API output.  
 
-This library is designed for microservices, distributed systems, or any project that needs consistent error handling and logging.
+Designed for microservices, distributed systems, or any project that needs consistent **logging, error handling, and observability**.
 
 ---
 
@@ -28,13 +30,34 @@ dotnet add package DiagnosKit.Core
 ## 🚀 Quick Start
 
 ### 1. Register the Logger Manager
+
 In `Program.cs` or `Startup.ConfigureServices`:
 
 ```csharp
 builder.Services.AddLoggerManager();
 ```
 
-### 2. Use the Global Error Handler
+### 2. Configure Serilog with Elasticsearch Sink
+
+In `Program.cs` (before `builder.Build()`):
+
+```csharp
+builder.Host.ConfigureSerilogESSink();
+```
+
+This will:
+
+- Read settings from `appsettings.json` and environment-specific config.  
+- Enrich logs with machine name, environment, correlation id, process id, and exception details.  
+- Write logs to Console, Debug, and Elasticsearch.  
+- Automatically index logs into Elasticsearch with an index format:
+
+```
+{service-name}-{environment}-{yyyy-MM}
+```
+
+### 3. Use the Global Error Handler
+
 In `Program.cs` or `Startup.Configure`:
 
 ```csharp
@@ -43,72 +66,62 @@ app.UseUnifiedErrorHandler();
 
 ---
 
-## 🛠 Example
+## 🛠 Logging Examples
+
+Once configured, inject the `ILogger<LoggerManager>` into your service or use the `LoggerManager` wrapper methods:
 
 ```csharp
-// Program.cs
-var builder = WebApplication.CreateBuilder(args);
+// Info
+_logger.LogInfo("Application started");
 
-// Add Logger Manager
-builder.Services.AddLoggerManager();
+// Debug
+_logger.LogDebug("Processing request {RequestId}", requestId);
 
-var app = builder.Build();
+// Warning
+_logger.LogWarn("User {UserId} attempted invalid action", userId);
 
-// Use Global Error Handler Middleware
-app.UseUnifiedErrorHandler();
-
-app.MapGet("/", () =>
-{
-    throw new Exception("Test unhandled exception");
-});
-
-app.Run();
+// Error
+_logger.LogError("Something went wrong");
+_logger.LogError(exception, "Exception occurred while processing request");
 ```
 
-```csharp
-public class DiagnosKit
-{
-    private readonly ILoggerManager _logger;
+All logs will be shipped to **Console**, **Elasticsearch**, and be queryable in **Kibana**.
 
-    public DiagnosKit(ILoggerManager logger)
-    {
-        _logger = logger;
-    }
+---
 
-    public void LogTest()
-    {
-        _logger.LogDebug("This is a debug");
-        _logger.LogInfo("This is an info log");
-        _logger.LogWarn("This is a warning log");
-        _logger.LogError("This is an error log");
-        _logger.LogCritical("This is a critical log");
-    }
-}
-```
-
-If an unhandled exception occurs, the middleware logs the error and returns a standardized JSON response like:
+## Sample appsettings.json for Serilog and Elasticsearch for work as expected
 
 ```json
 {
-  "statusCode": 500,
-  "message": "Internal Server Error"
+  "Serilog": {
+    "MinimumLevel": {
+      "Default": "Information",
+      "Override": {
+        "Microsoft.AspNetCore": "Information",
+        "System": "Warning"
+      }
+    }
+  },
+  "ElasticSearch": {
+    "Url": "http://localhost:9200",
+  }
 }
 ```
 
 ---
 
-## 📂 Folder Structure
+## 📊 Kibana Filtering
 
-```
-Middleware/
-  UnifiedErrorHandlerMiddleware.cs
-  MiddlewareExtensions.cs
+Because logs are enriched with structured properties (like `Environment`, `Service`, `CorrelationId`, and `Exception`),  
+you can filter/search logs in **Kibana** by:
 
-Logging/
-  LoggerManager.cs
-  LoggerExtensions.cs
-```
+- `Environment: "Production"`  
+- `Service: "UserService"`  
+- `Exception exists`  
+- `UserId: 12345`
+
 ---
+
 ## ⚖ License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
