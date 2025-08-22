@@ -7,12 +7,12 @@ using System.Text.Json;
 
 namespace DiagnosKit.Core.Middlewares
 {
-    public class UnifiedErrorHandlerMIddleware
+    public class UnifiedErrorHandlerMiddleware
     {
         private readonly RequestDelegate _next;
         private readonly ILoggerManager _logger;
 
-        public UnifiedErrorHandlerMIddleware(RequestDelegate next, ILoggerManager logger)
+        public UnifiedErrorHandlerMiddleware(RequestDelegate next, ILoggerManager logger)
         {
             _next = next;
             _logger = logger;
@@ -26,7 +26,6 @@ namespace DiagnosKit.Core.Middlewares
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Something went wrong: {ex}");
                 await HandleAsync(context, ex);
             }
         }
@@ -47,7 +46,7 @@ namespace DiagnosKit.Core.Middlewares
                     _ => StatusCodes.Status500InternalServerError
                 };
 
-                _logger.LogError($"Something went wrong: {contextFeature.Error}");
+                _logger.LogError(contextFeature.Error, "Something went wrong: {Message}", contextFeature.Error.Message);
                 await context.Response.WriteAsync(JsonSerializer.Serialize(new
                 {
                     StatusCode = context.Response.StatusCode,
