@@ -68,7 +68,7 @@ app.UseUnifiedErrorHandler();
 
 ## 🛠 Logging Examples
 
-Once configured, inject the `ILogger<LoggerManager>` into your service or use the `LoggerManager` wrapper methods:
+Once configured, inject the `ILoggerManager` into your service:
 
 ```csharp
 // Info
@@ -89,7 +89,7 @@ All logs will be shipped to **Console**, **Elasticsearch**, and be queryable in 
 
 ---
 
-## Sample appsettings.json for Serilog and Elasticsearch for work as expected
+## Sample appsettings.json for Serilog and Elasticsearch to work as expected
 
 ```json
 {
