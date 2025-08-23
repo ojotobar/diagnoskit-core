@@ -1,79 +1,85 @@
 ﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Exceptions;
 using Serilog.Sinks.Elasticsearch;
-using System.Reflection;
 
 namespace DiagnosKit.Core.Configurations
 {
     public static class SerilogESSinkConfiguration
     {
-        public static IHostBuilder ConfigureSerilogESSink(this IHostBuilder builder)
+        public static IHostBuilder ConfigureSerilogESSink(this IHostBuilder hostBuilder)
         {
-            var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? string.Empty;
-            var config = new ConfigurationBuilder()
-                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-                .AddJsonFile($"appsettings.{env}.json", optional: true)
-                .Build();
+            hostBuilder.UseSerilog((context, services, configuration) =>
+            {
+                var env = context.HostingEnvironment;
+                var appName = env.ApplicationName; // ✅ actual app name
+                var elasticConfig = context.Configuration.GetSection("ElasticSearch");
+                var elasticUrl = elasticConfig.GetValue<string>("Url") ?? throw new ArgumentNullException("ElasticSearch:Url");
+                var indexFormat = elasticConfig.GetValue<string>("IndexFormat") ??
+                    $"{appName?.ToLower().Replace(".", "-")}-{env.EnvironmentName.ToLower()}-{DateTime.UtcNow:yyyy-MM}";
 
-            Log.Logger = new LoggerConfiguration()
-                .Enrich.FromLogContext()
-                .Enrich.WithMachineName()
-                .Enrich.WithEnvironmentName()
-                .Enrich.WithThreadId()
-                .Enrich.WithProcessId()
-                .Enrich.WithCorrelationId()
-                .Enrich.WithExceptionDetails()
-                .WriteTo.Debug()
-                .WriteTo.Console()
-                .Enrich.WithProperty("Environment", env)
-                .ReadFrom.Configuration(config)
-                .Enrich.WithProperty("Service", Assembly.GetExecutingAssembly().GetName().Name)
-                .WriteTo.Elasticsearch(ConfigureElasticSink(config, env))
-                .CreateLogger();
+                configuration
+                    .Enrich.FromLogContext()
+                    .Enrich.WithMachineName()
+                    .Enrich.WithEnvironmentName()
+                    .Enrich.WithThreadId()
+                    .Enrich.WithProcessId()
+                    .Enrich.WithCorrelationId()
+                    .Enrich.WithExceptionDetails()
+                    .Enrich.WithProperty("Environment", env.EnvironmentName)
+                    .Enrich.WithProperty("Service", appName)
+                    .WriteTo.Debug()
+                    .WriteTo.Console()
+                    .ReadFrom.Configuration(context.Configuration)
+                    .WriteTo.Elasticsearch(ConfigureElasticSink(elasticUrl, indexFormat));
+            });
 
-            builder.UseSerilog();
-            return builder;
+            return hostBuilder;
         }
 
         public static IHostApplicationBuilder ConfigureSerilogESSink(this IHostApplicationBuilder builder)
         {
-            var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? string.Empty;
+            var env = builder.Environment.EnvironmentName ?? string.Empty;
 
-            var config = new ConfigurationBuilder()
-                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-                .AddJsonFile($"appsettings.{env}.json", optional: true)
-                .Build();
+            var elasticConfig = builder.Configuration.GetSection("ElasticSearch");
+            var elasticUrl = elasticConfig.GetValue<string>("Url")
+                ?? throw new ArgumentNullException("ElasticSearch:Url");
 
-            Log.Logger = new LoggerConfiguration()
-                .Enrich.FromLogContext()
-                .Enrich.WithMachineName()
-                .Enrich.WithEnvironmentName()
-                .Enrich.WithThreadId()
-                .Enrich.WithProcessId()
-                .Enrich.WithCorrelationId()
-                .Enrich.WithExceptionDetails()
-                .WriteTo.Debug()
-                .WriteTo.Console()
-                .Enrich.WithProperty("Environment", env)
-                .ReadFrom.Configuration(config)
-                .Enrich.WithProperty("Service", Assembly.GetExecutingAssembly().GetName().Name)
-                .WriteTo.Elasticsearch(ConfigureElasticSink(config, env))
-                .CreateLogger();
+            var indexFormat = elasticConfig.GetValue<string>("IndexFormat") ??
+                $"{builder.Environment.ApplicationName?.ToLower().Replace(".", "-")}-{env.ToLower()}-{DateTime.UtcNow:yyyy-MM}";
 
-            builder.Logging.ClearProviders();
-            builder.Logging.AddSerilog();
+            builder.Services.AddLogging(logging =>
+            {
+                logging.ClearProviders();
+                logging.AddSerilog(new LoggerConfiguration()
+                    .Enrich.FromLogContext()
+                    .Enrich.WithMachineName()
+                    .Enrich.WithEnvironmentName()
+                    .Enrich.WithThreadId()
+                    .Enrich.WithProcessId()
+                    .Enrich.WithCorrelationId()
+                    .Enrich.WithExceptionDetails()
+                    .WriteTo.Debug()
+                    .WriteTo.Console()
+                    .Enrich.WithProperty("Environment", env)
+                    .Enrich.WithProperty("Service", builder.Environment.ApplicationName)
+                    .ReadFrom.Configuration(builder.Configuration)
+                    .WriteTo.Elasticsearch(ConfigureElasticSink(elasticUrl, indexFormat))
+                    .CreateLogger(), dispose: true);
+            });
+
             return builder;
         }
 
-        private static ElasticsearchSinkOptions ConfigureElasticSink(IConfigurationRoot config, string environment)
+        private static ElasticsearchSinkOptions ConfigureElasticSink(string url, string indexFormat)
         {
-            return new ElasticsearchSinkOptions(new Uri(config["ElasticSearch:Url"] ?? string.Empty))
+            return new ElasticsearchSinkOptions(new Uri(url))
             {
                 AutoRegisterTemplate = true,
-                IndexFormat = $"{Assembly.GetExecutingAssembly().GetName()?.Name?.ToLower().Replace(".", "-")}-{environment.ToLower()}-{DateTime.UtcNow:yyyy-MM}",
+                IndexFormat = indexFormat,
                 NumberOfReplicas = 1,
                 NumberOfShards = 2,
             };
