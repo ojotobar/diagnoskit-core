@@ -4,16 +4,11 @@
 [![NuGet Downloads](https://img.shields.io/nuget/dt/DiagnosKit.Core.svg)](https://www.nuget.org/packages/DiagnosKit.Core)
 
 ---
-
-## 📖 Overview
-
-**DiagnosKit.Core** is a reusable .NET toolkit providing cross-cutting features for your services, including:
-
-- **Global error handling middleware** to capture and format unhandled exceptions.  
-- **Centralized logger manager** powered by **Serilog** with support for **Elasticsearch** and **Kibana**.  
-- **Standardized error response models** for consistent API output.  
-
-Designed for microservices, distributed systems, or any project that needs consistent **logging, error handling, and observability**.
+A lightweight diagnostics toolkit for .NET 8+ that provides:
+- Unified global exception handling (middleware)
+- Structured logging with Serilog
+- Elasticsearch sink support
+- Easy integration for both **Web APIs** and **Worker Services**
 
 ---
 
@@ -27,69 +22,91 @@ dotnet add package DiagnosKit.Core
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Usage
 
-### 1. Register the Logger Manager
-
-In `Program.cs` or `Startup.ConfigureServices`:
+### 1. Web API (`Program.cs`)
 
 ```csharp
-builder.Services.AddLoggerManager();
-```
+using DiagnosKit.Core;
 
-### 2. Configure Serilog with Elasticsearch Sink
+// For pre-bootstrap logging
+SerilogBootstrapper.UseBootstrapLogger();
 
-In `Program.cs` (before `builder.Build()`):
+var builder = WebApplication.CreateBuilder(args);
 
-```csharp
+// Configure Serilog + Elasticsearch
 builder.Host.ConfigureSerilogESSink();
-```
 
-This will:
+// Add DiagnosKit logging abstraction
+builder.Services.AddLoggerManager();
+builder.Services.AddControllers();
 
-- Read settings from `appsettings.json` and environment-specific config.  
-- Enrich logs with machine name, environment, correlation id, process id, and exception details.  
-- Write logs to Console, Debug, and Elasticsearch.  
-- Automatically index logs into Elasticsearch with an index format:
+var app = builder.Build();
 
-```
-{service-name}-{environment}-{yyyy-MM}
-```
-
-### 3. Use the Global Error Handler
-
-In `Program.cs` or `Startup.Configure`:
-
-```csharp
+// Use global exception handler middleware
 app.UseUnifiedErrorHandler();
+
+app.MapControllers();
+
+app.Run();
 ```
 
 ---
 
-## 🛠 Logging Examples
-
-Once configured, inject the `ILoggerManager` into your service:
+### 2. Worker Service (`Program.cs`)
 
 ```csharp
-// Info
-_logger.LogInfo("Application started");
+using DiagnosKit.Core;
 
-// Debug
-_logger.LogDebug("Processing request {RequestId}", requestId);
+// For pre-bootstrap logging
+SerilogBootstrapper.UseBootstrapLogger();
 
-// Warning
-_logger.LogWarn("User {UserId} attempted invalid action", userId);
+var builder = Host.CreateApplicationBuilder(args);
 
-// Error
-_logger.LogError("Something went wrong");
-_logger.LogError(exception, "Exception occurred while processing request");
+// Configure Serilog + Elasticsearch
+builder.ConfigureSerilogESSink();
+
+// Add DiagnosKit logging abstraction
+builder.Services.AddLoggerManager();
+
+// Add your worker
+builder.Services.AddHostedService<MyWorker>();
+
+var host = builder.Build();
+host.Run();
 ```
 
-All logs will be shipped to **Console**, **Elasticsearch**, and be queryable in **Kibana**.
+Example Worker:
+
+```csharp
+public class MyWorker : BackgroundService
+{
+    private readonly ILoggerManager _logger;
+
+    public MyWorker(ILoggerManager logger)
+    {
+        _logger = logger;
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        _logger.LogInfo("Worker started");
+
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            _logger.LogDebug("Heartbeat at: {time}", DateTimeOffset.Now);
+            await Task.Delay(1000, stoppingToken);
+        }
+    }
+}
+```
 
 ---
 
-## Sample appsettings.json for Serilog and Elasticsearch to work as expected
+## ⚙️ Configuration
+
+#### IndexFormat will default to this format: application-name-{0:yyyy.MM}, if no format is specified
+In your `appsettings.json`: 
 
 ```json
 {
@@ -104,9 +121,19 @@ All logs will be shipped to **Console**, **Elasticsearch**, and be queryable in 
   },
   "ElasticSearch": {
     "Url": "http://localhost:9200",
-  }
+    "IndexFormat": "myapp-{0:yyyy.MM}"
+  },
 }
 ```
+
+---
+
+## 📝 Features
+
+- **Web API support** via middleware (`app.UseUnifiedErrorHandler()`).
+- **Worker Service support** with logger abstraction (`ILoggerManager`).
+- **Serilog + Elasticsearch integration** out of the box.
+- **Environment-aware index naming** (per app + environment).
 
 ---
 
