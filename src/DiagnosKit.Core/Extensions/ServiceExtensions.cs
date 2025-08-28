@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using Prometheus;
 
 namespace DiagnosKit.Core.Extensions
 {
@@ -139,6 +140,24 @@ namespace DiagnosKit.Core.Extensions
                 });
 
             return services;
+        }
+
+        /// <summary>
+        /// Enables Prometheus metrics collection for the application by:
+        /// - Collecting default HTTP request metrics via middleware
+        /// - Mapping the /metrics endpoint for scraping
+        /// </summary>
+        /// <param name="app">The WebApplication instance.</param>
+        /// <returns>The updated WebApplication.</returns>
+        public static IApplicationBuilder UseDiagnosKitPrometheus(this WebApplication app)
+        {
+            // Collects default HTTP request metrics (duration, count, etc.)
+            app.UseHttpMetrics();
+
+            // Exposes /metrics endpoint for Prometheus to scrape
+            app.MapMetrics();
+
+            return app;
         }
 
         /// <summary>
