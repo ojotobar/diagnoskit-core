@@ -66,6 +66,8 @@ app.MapControllers();
 
 // Expose /metrics for Prometheus
 app.MapPrometheusScrapingEndpoint();
+// Enables Prometheus metrics collection for the application
+app.UseDiagnosKitPrometheus();
 
 app.Run();
 ```
