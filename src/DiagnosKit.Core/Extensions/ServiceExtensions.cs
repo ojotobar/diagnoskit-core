@@ -125,7 +125,6 @@ namespace DiagnosKit.Core.Extensions
                     tracing
                         .AddAspNetCoreInstrumentation()
                         .AddHttpClientInstrumentation()
-                        .AddSqlClientInstrumentation(opt => opt.SetDbStatementForText = true)
                         .AddSource(serviceName);
 
                     traceConfig?.Invoke(tracing);
@@ -135,9 +134,7 @@ namespace DiagnosKit.Core.Extensions
                     metrics
                         .AddAspNetCoreInstrumentation()
                         .AddRuntimeInstrumentation()
-                        .AddHttpClientInstrumentation()
-                        .AddPrometheusExporter();
-
+                        .AddHttpClientInstrumentation();
                     metricsConfig?.Invoke(metrics);
                 });
 
