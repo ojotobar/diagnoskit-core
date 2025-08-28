@@ -5,10 +5,13 @@
 
 ---
 A lightweight diagnostics toolkit for .NET 8+ that provides:
-- Unified global exception handling (middleware)
 - Structured logging with Serilog
 - Elasticsearch sink support
 - Easy integration for both **Web APIs** and **Worker Services**
+- Unified global exception handling (middleware)
+- OpenTelemetry tracing, metrics & logging integration
+- Automatic request meters (requests per endpoint, duration, failures)
+- Log enrichment with CorrelationId and UserId
 
 ---
 
@@ -37,16 +40,32 @@ var builder = WebApplication.CreateBuilder(args);
 // Configure Serilog + Elasticsearch
 builder.Host.ConfigureSerilogESSink();
 
-// Add DiagnosKit logging abstraction
+// Add DiagnosKit logger abstraction
 builder.Services.AddLoggerManager();
+
+// Add OpenTelemetry (traces + metrics + logging)
+builder.Services.AddDiagnosKitObservability(
+    serviceName: "MyWebApi",
+    serviceVersion: "1.0.0"
+);
+
+// Optional: OTel logging
+builder.Logging.AddDiagnosKitOpenTelemetryLogging();
+
 builder.Services.AddControllers();
 
 var app = builder.Build();
 
-// Use global exception handler middleware
+// Global exception handler
 app.UseUnifiedErrorHandler();
 
+// Log & metrics enrichment (CorrelationId + UserId + meters)
+app.UseDiagnosKitLogEnricher();
+
 app.MapControllers();
+
+// Expose /metrics for Prometheus
+app.MapPrometheusScrapingEndpoint();
 
 app.Run();
 ```
@@ -58,7 +77,7 @@ app.Run();
 ```csharp
 using DiagnosKit.Core;
 
-// For pre-bootstrap logging
+// Pre-bootstrap logging
 SerilogBootstrapper.UseBootstrapLogger();
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -66,10 +85,19 @@ var builder = Host.CreateApplicationBuilder(args);
 // Configure Serilog + Elasticsearch
 builder.ConfigureSerilogESSink();
 
-// Add DiagnosKit logging abstraction
+// Add DiagnosKit logger abstraction
 builder.Services.AddLoggerManager();
 
-// Add your worker
+// Add OpenTelemetry (traces + metrics)
+builder.Services.AddDiagnosKitObservability(
+    serviceName: "MyWorker",
+    serviceVersion: "1.0.0"
+);
+
+// Optional: OTel logging
+builder.Logging.AddDiagnosKitOpenTelemetryLogging();
+
+// Register worker
 builder.Services.AddHostedService<MyWorker>();
 
 var host = builder.Build();
@@ -130,10 +158,16 @@ In your `appsettings.json`:
 
 ## 📝 Features
 
-- **Web API support** via middleware (`app.UseUnifiedErrorHandler()`).
-- **Worker Service support** with logger abstraction (`ILoggerManager`).
-- **Serilog + Elasticsearch integration** out of the box.
-- **Environment-aware index naming** (per app + environment).
+✅ Web API support (app.UseDiagnosKitErrorHandler())
+✅ Worker Service support with ILoggerManager abstraction
+✅ Serilog + Elasticsearch integration
+✅ OpenTelemetry-ready (Tracing, Metrics, Logging)
+✅ Request meters (per endpoint: total requests, failures, duration)
+✅ Automatic log enrichment with 
+- CorrelationId
+- UserId (when available)
+- Environment
+- Service
 
 ---
 
@@ -146,6 +180,114 @@ you can filter/search logs in **Kibana** by:
 - `Service: "UserService"`  
 - `Exception exists`  
 - `UserId: 12345`
+
+---
+
+## 📊 Kibana + Grafana
+
+Kibana → filter structured logs by:
+- Environment: "Production"
+- Service: "UserService"
+- CorrelationId: "abc123"
+- UserId: 12345
+- Exception exists
+
+Grafana → visualize Prometheus metrics:
+- http_requests_total{endpoint="/api/users"}
+- http_requests_failed_total
+- http_request_duration_seconds
+
+## Prometheus Setup
+
+By default, app.MapPrometheusScrapingEndpoint() in your ASP.NET Core app exposes metrics at /metrics.
+In your Prometheus config (prometheus.yml), the metrics_path tells Prometheus where to scrape from. 
+If you don’t set it, Prometheus automatically defaults to /metrics.
+
+✅ Example (explicit):
+```yaml
+scrape_configs:
+  - job_name: 'diagnoskit-api'
+    scrape_interval: 5s
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['host.docker.internal:5000']
+```
+
+✅ Example (simpler, same result):
+```json
+scrape_configs:
+  - job_name: 'diagnoskit-api'
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['host.docker.internal:5000']
+```
+
+Run Prometheus with this config, and you’ll see metrics like:
+- http_server_requests_duration_seconds (per endpoint latency histograms)
+- http_server_requests_count (per endpoint request count)
+- .NET runtime metrics (GC, memory, threads, exceptions)
+
+---
+
+## Grafana Dashboard Example
+Here’s a minimal Grafana dashboard JSON you can import to visualize key metrics:
+
+```json
+{
+  "id": null,
+  "title": "DiagnosKit API Dashboard",
+  "timezone": "browser",
+  "panels": [
+    {
+      "type": "graph",
+      "title": "Request Count per Endpoint",
+      "targets": [
+        {
+          "expr": "sum by (method, route) (http_server_requests_count)",
+          "legendFormat": "{{method}} {{route}}"
+        }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Request Duration (p95)",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_duration_seconds_bucket[5m])) by (le, route))",
+          "legendFormat": "{{route}}"
+        }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": ".NET GC Collections",
+      "targets": [
+        {
+          "expr": "dotnet_gc_collections_count_total",
+          "legendFormat": "Gen {{generation}}"
+        }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Memory Usage",
+      "targets": [
+        {
+          "expr": "process_private_memory_bytes",
+          "legendFormat": "Private Memory"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 30,
+  "version": 1
+}
+```
+
+### 👉 In Grafana:
+- Go to Dashboards > Import
+- Paste the JSON above
+- Select your Prometheus datasource
 
 ---
 
