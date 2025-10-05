@@ -15,7 +15,7 @@ namespace DiagnosKit.Core.Configurations
             hostBuilder.UseSerilog((context, services, configuration) =>
             {
                 var env = context.HostingEnvironment;
-                var appName = env.ApplicationName; // ✅ actual app name
+                var appName = env.ApplicationName;
                 var elasticConfig = context.Configuration.GetSection("ElasticSearch");
                 var elasticUrl = elasticConfig.GetValue<string>("Url") ?? throw new ArgumentNullException("ElasticSearch:Url");
                 var indexFormat = elasticConfig.GetValue<string>("IndexFormat") ??
@@ -34,7 +34,7 @@ namespace DiagnosKit.Core.Configurations
                     .WriteTo.Debug()
                     .WriteTo.Console()
                     .ReadFrom.Configuration(context.Configuration)
-                    .WriteTo.Elasticsearch(ConfigureElasticSink(elasticUrl, indexFormat));
+                    .WriteTo.Elasticsearch(ConfigureElasticSink(elasticConfig, indexFormat));
             });
 
             return hostBuilder;
@@ -67,22 +67,39 @@ namespace DiagnosKit.Core.Configurations
                     .Enrich.WithProperty("Environment", env)
                     .Enrich.WithProperty("Service", builder.Environment.ApplicationName)
                     .ReadFrom.Configuration(builder.Configuration)
-                    .WriteTo.Elasticsearch(ConfigureElasticSink(elasticUrl, indexFormat))
+                    .WriteTo.Elasticsearch(ConfigureElasticSink(elasticConfig, indexFormat))
                     .CreateLogger(), dispose: true);
             });
 
             return builder;
         }
 
-        private static ElasticsearchSinkOptions ConfigureElasticSink(string url, string indexFormat)
+        private static ElasticsearchSinkOptions ConfigureElasticSink(IConfigurationSection section, string indexFormat)
         {
+            var url = section.GetValue<string>("Url")
+                ?? throw new ArgumentNullException("ElasticSearch:Url");
+
+            var username = section.GetValue<string>("Username");
+            var password = section.GetValue<string>("Password");
+
             return new ElasticsearchSinkOptions(new Uri(url))
             {
                 AutoRegisterTemplate = true,
                 IndexFormat = indexFormat,
                 NumberOfReplicas = 1,
                 NumberOfShards = 2,
+                ModifyConnectionSettings = x =>
+                {
+                    if (!string.IsNullOrEmpty(username) && !string.IsNullOrEmpty(password))
+                        x.BasicAuthentication(username, password);
+
+                    // Optional: trust self-signed or cloud certs
+                    x.ServerCertificateValidationCallback((a, b, c, d) => true);
+
+                    return x;
+                }
             };
         }
+
     }
 }
