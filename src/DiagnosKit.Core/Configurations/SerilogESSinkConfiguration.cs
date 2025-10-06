@@ -17,7 +17,6 @@ namespace DiagnosKit.Core.Configurations
                 var env = context.HostingEnvironment;
                 var appName = env.ApplicationName;
                 var elasticConfig = context.Configuration.GetSection("ElasticSearch");
-                var elasticUrl = elasticConfig.GetValue<string>("Url") ?? throw new ArgumentNullException("ElasticSearch:Url");
                 var indexFormat = elasticConfig.GetValue<string>("IndexFormat") ??
                     $"{appName?.ToLower().Replace(".", "-")}-{env.EnvironmentName.ToLower()}-{DateTime.UtcNow:yyyy-MM}";
 
@@ -43,11 +42,7 @@ namespace DiagnosKit.Core.Configurations
         public static IHostApplicationBuilder ConfigureSerilogESSink(this IHostApplicationBuilder builder)
         {
             var env = builder.Environment.EnvironmentName ?? string.Empty;
-
             var elasticConfig = builder.Configuration.GetSection("ElasticSearch");
-            var elasticUrl = elasticConfig.GetValue<string>("Url")
-                ?? throw new ArgumentNullException("ElasticSearch:Url");
-
             var indexFormat = elasticConfig.GetValue<string>("IndexFormat") ??
                 $"{builder.Environment.ApplicationName?.ToLower().Replace(".", "-")}-{env.ToLower()}-{DateTime.UtcNow:yyyy-MM}";
 
@@ -81,6 +76,11 @@ namespace DiagnosKit.Core.Configurations
 
             var username = section.GetValue<string>("Username");
             var password = section.GetValue<string>("Password");
+            var indexPrefix = section.GetValue<string>("IndexPrefix");
+            if (!string.IsNullOrWhiteSpace(indexPrefix))
+            {
+                indexFormat = $"{indexPrefix.Replace(".", "")}-{indexFormat}";
+            }
 
             return new ElasticsearchSinkOptions(new Uri(url))
             {
