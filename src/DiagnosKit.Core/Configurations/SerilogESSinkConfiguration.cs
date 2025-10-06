@@ -93,13 +93,15 @@ namespace DiagnosKit.Core.Configurations
                     if (!string.IsNullOrEmpty(username) && !string.IsNullOrEmpty(password))
                         x.BasicAuthentication(username, password);
 
-                    // Optional: trust self-signed or cloud certs
-                    x.ServerCertificateValidationCallback((a, b, c, d) => true);
+                    x.ServerCertificateValidationCallback((sender, cert, chain, errors) => true);
+
+                    x.DisablePing();
+
+                    x.ThrowExceptions();
 
                     return x;
                 }
             };
         }
-
     }
 }
