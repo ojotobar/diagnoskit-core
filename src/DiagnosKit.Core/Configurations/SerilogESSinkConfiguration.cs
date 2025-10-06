@@ -84,7 +84,7 @@ namespace DiagnosKit.Core.Configurations
 
             return new ElasticsearchSinkOptions(new Uri(url))
             {
-                AutoRegisterTemplate = true,
+                AutoRegisterTemplate = false,
                 IndexFormat = indexFormat,
                 NumberOfReplicas = 1,
                 NumberOfShards = 2,
