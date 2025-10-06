@@ -88,6 +88,7 @@ namespace DiagnosKit.Core.Configurations
                 IndexFormat = indexFormat,
                 NumberOfReplicas = 1,
                 NumberOfShards = 2,
+                TypeName = null,
                 ModifyConnectionSettings = x =>
                 {
                     if (!string.IsNullOrEmpty(username) && !string.IsNullOrEmpty(password))
