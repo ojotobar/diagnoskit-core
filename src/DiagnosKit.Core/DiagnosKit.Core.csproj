@@ -11,7 +11,7 @@
 		<RepositoryUrl>https://github.com/ojotobar/diagnoskit-core</RepositoryUrl>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
-		<Version>2.2.2</Version>
+		<Version>2.2.3</Version>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -34,7 +34,7 @@
 		<PackageReference Include="Serilog.Enrichers.Environment" Version="3.0.1" />
 		<PackageReference Include="Serilog.Enrichers.Process" Version="3.0.0" />
 		<PackageReference Include="Serilog.Enrichers.Thread" Version="4.0.0" />
-		<PackageReference Include="Serilog.Sinks.Elasticsearch" Version="9.0.3" />
+		<PackageReference Include="Serilog.Sinks.Elasticsearch" Version="8.4.1" />
 		<PackageReference Include="Serilog.AspNetCore" Version="8.0.0" />
 		<PackageReference Include="Serilog.Exceptions" Version="8.4.0" />
 		<PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />
