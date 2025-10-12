@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using DiagnosKit.Core.Settings;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -69,6 +70,31 @@ namespace DiagnosKit.Core.Configurations
             return builder;
         }
 
+        public static IHostBuilder ConfigureSerilogESSink(this IHostBuilder hostBuilder,
+                                                          Action<DiagnosKitESSettings> configure)
+        {
+            hostBuilder.UseSerilog((context, services, configuration) =>
+            {
+                var env = context.HostingEnvironment;
+                var appName = env.ApplicationName;
+
+                var options = new DiagnosKitESSettings();
+                configure(options);
+
+                options.IndexFormat = options.IndexFormat
+                    ?? $"{appName?.ToLower().Replace(".", "-")}-{env.EnvironmentName.ToLower()}-{DateTime.UtcNow:yyyy-MM}";
+
+                configuration
+                    .Enrich.FromLogContext()
+                    .Enrich.WithProperty("Environment", env.EnvironmentName)
+                    .Enrich.WithProperty("Service", appName)
+                    .WriteTo.Console()
+                    .WriteTo.Elasticsearch(ConfigureElasticSink(options));
+            });
+
+            return hostBuilder;
+        }
+
         private static ElasticsearchSinkOptions ConfigureElasticSink(IConfigurationSection section, string indexFormat)
         {
             var url = section.GetValue<string>("Url")
@@ -104,5 +130,36 @@ namespace DiagnosKit.Core.Configurations
                 }
             };
         }
+
+        private static ElasticsearchSinkOptions ConfigureElasticSink(DiagnosKitESSettings settings)
+        {
+            if (!string.IsNullOrWhiteSpace(settings.IndexPrefix))
+            {
+                settings.IndexFormat = $"{settings.IndexPrefix.Replace(".", "")}-{settings.IndexFormat}";
+            }
+
+            return new ElasticsearchSinkOptions(new Uri(settings.Url))
+            {
+                AutoRegisterTemplate = false,
+                IndexFormat = settings.IndexFormat,
+                NumberOfReplicas = 1,
+                NumberOfShards = 2,
+                TypeName = null,
+                ModifyConnectionSettings = x =>
+                {
+                    if (!string.IsNullOrEmpty(settings.Username) && !string.IsNullOrEmpty(settings.Password))
+                        x.BasicAuthentication(settings.Username, settings.Password);
+
+                    x.ServerCertificateValidationCallback((sender, cert, chain, errors) => true);
+
+                    x.DisablePing();
+
+                    x.ThrowExceptions();
+
+                    return x;
+                }
+            };
+        }
+
     }
 }
