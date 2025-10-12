@@ -57,10 +57,8 @@ builder.Services.AddControllers();
 var app = builder.Build();
 
 // Global exception handler
-app.UseUnifiedErrorHandler();
-
-// Log & metrics enrichment (CorrelationId + UserId + meters)
-app.UseDiagnosKitLogEnricher();
+var logger = app.Services.GetRequiredServices<ILoggerManager>();
+app.UseDiagnosKitExceptionHandler(logger);
 
 app.MapControllers();
 
