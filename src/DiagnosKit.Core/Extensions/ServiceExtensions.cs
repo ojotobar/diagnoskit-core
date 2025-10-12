@@ -1,6 +1,5 @@
 ﻿using DiagnosKit.Core.Logging.Contracts;
 using DiagnosKit.Core.Logging.Implementations;
-using DiagnosKit.Core.Middlewares;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -13,45 +12,6 @@ namespace DiagnosKit.Core.Extensions
 {
     public static class ServiceExtensions
     {
-        /// <summary>
-        /// Registers the <see cref="UnifiedErrorHandlerMiddleware"/> in the application's
-        /// request pipeline.
-        /// </summary>
-        /// <param name="app">The <see cref="IApplicationBuilder"/> instance being extended.</param>
-        /// <returns>
-        /// The same <see cref="IApplicationBuilder"/> instance, enabling chained middleware configuration.
-        /// </returns>
-        /// <remarks>
-        /// This middleware provides centralized exception handling for DiagnosKit-enabled applications, 
-        /// ensuring that unhandled errors are consistently logged and formatted before being returned 
-        /// to the client.
-        /// </remarks>
-        public static IApplicationBuilder UseDiagnosKitErrorHandler(this IApplicationBuilder app)
-        {
-            app.UseMiddleware<UnifiedErrorHandlerMiddleware>();
-            return app;
-        }
-
-        /// <summary>
-        /// Registers the <see cref="LogAndMetricsEnrichmentMiddleware"/> in the application's
-        /// request pipeline.
-        /// </summary>
-        /// <param name="app">The <see cref="IApplicationBuilder"/> instance being extended.</param>
-        /// <returns>
-        /// The same <see cref="IApplicationBuilder"/> instance, enabling chained middleware configuration.
-        /// </returns>
-        /// <remarks>
-        /// This middleware enriches structured logs with contextual information such as 
-        /// <c>CorrelationId</c> and <c>UserId</c>, enabling better traceability across distributed systems.  
-        /// It also records request-related metrics using OpenTelemetry <see cref="Meter"/>s, 
-        /// such as per-endpoint request counts, providing unified observability for DiagnosKit-enabled applications.
-        /// </remarks>
-        public static IApplicationBuilder UseDiagnosKitLogEnricher(this IApplicationBuilder app)
-        {
-            app.UseMiddleware<LogAndMetricsEnrichmentMiddleware>();
-            return app;
-        }
-
         /// <summary>
         /// Registers the <see cref="LoggerManager"/> implementation of <see cref="ILoggerManager"/> 
         /// in the application's dependency injection container.
