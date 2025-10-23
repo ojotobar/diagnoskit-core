@@ -81,8 +81,9 @@ namespace DiagnosKit.Core.Configurations
                 var options = new DiagnosKitESSettings();
                 configure(options);
 
-                options.IndexFormat = options.IndexFormat
-                    ?? $"{appName?.ToLower().Replace(".", "-")}-{env.EnvironmentName.ToLower()}-{DateTime.UtcNow:yyyy-MM}";
+                options.IndexFormat = !string.IsNullOrWhiteSpace(options.IndexFormat) ? 
+                    options.IndexFormat :
+                    $"{appName?.ToLower().Replace(".", "-")}-{env.EnvironmentName.ToLower()}-{DateTime.UtcNow:yyyy-MM}";
 
                 configuration
                     .Enrich.FromLogContext()
