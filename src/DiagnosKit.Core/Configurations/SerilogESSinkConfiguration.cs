@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog;
+using Serilog.Events;
 using Serilog.Exceptions;
 using Serilog.Sinks.Elasticsearch;
 
@@ -70,7 +71,7 @@ namespace DiagnosKit.Core.Configurations
             return builder;
         }
 
-        public static IHostBuilder ConfigureSerilogESSink(this IHostBuilder hostBuilder,
+        public static IHostBuilder ConfigureSerilogESSink(this IHostBuilder hostBuilder, 
                                                           Action<DiagnosKitESSettings> configure)
         {
             hostBuilder.UseSerilog((context, services, configuration) =>
@@ -81,15 +82,32 @@ namespace DiagnosKit.Core.Configurations
                 var options = new DiagnosKitESSettings();
                 configure(options);
 
-                options.IndexFormat = !string.IsNullOrWhiteSpace(options.IndexFormat) ? 
-                    options.IndexFormat :
-                    $"{appName?.ToLower().Replace(".", "-")}-{env.EnvironmentName.ToLower()}-{DateTime.UtcNow:yyyy-MM}";
+                options.IndexFormat = !string.IsNullOrWhiteSpace(options.IndexFormat)
+                    ? options.IndexFormat
+                    : $"{appName?.ToLower().Replace(".", "-")}-{env.EnvironmentName.ToLower()}";
 
                 configuration
                     .Enrich.FromLogContext()
                     .Enrich.WithProperty("Environment", env.EnvironmentName)
                     .Enrich.WithProperty("Service", appName)
-                    .WriteTo.Console()
+                    .MinimumLevel.Information()
+                    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+                    .MinimumLevel.Override("System", LogEventLevel.Warning)
+                    .Filter.ByIncludingOnly(e =>
+                        e.Level == LogEventLevel.Warning ||
+                        e.Level == LogEventLevel.Error ||
+                        e.Level == LogEventLevel.Fatal ||
+                        (e.Level == LogEventLevel.Information &&
+                         (e.MessageTemplate.Text.Contains("started", StringComparison.OrdinalIgnoreCase) ||
+                          e.MessageTemplate.Text.Contains("listening", StringComparison.OrdinalIgnoreCase)))
+                    )
+                    .Filter.ByExcluding(e =>
+                        e.Properties.ContainsKey("RequestHeaders") ||
+                        e.Properties.ContainsKey("RequestBody") ||
+                        e.Properties.ContainsKey("ResponseBody") ||
+                        (e.Properties.ContainsKey("StackTrace") && e.Level == LogEventLevel.Information)
+                    )
+                    .WriteTo.Console(restrictedToMinimumLevel: LogEventLevel.Information)
                     .WriteTo.Elasticsearch(ConfigureElasticSink(options));
             });
 
